@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Edit Estimate{% endblock %}
+{% block page_title %}Edit Estimate{% endblock %}
+{% block content %}
+<div class="page-header"><h4>Edit Estimate #{{ est.id }}</h4></div>
+<div class="card" style="max-width:760px;">
+  <div class="card-body">
+    <form method="POST">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Date *</label>
+          <input type="date" name="date" class="form-control" required value="{{ est.date }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Party *</label>
+          <select name="party_id" class="form-select" required>
+            {% for p in parties %}<option value="{{ p.id }}" {% if p.id==est.party_id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Division</label>
+          <select name="division_id" class="form-select">
+            <option value="">— None —</option>
+            {% for d in divisions %}<option value="{{ d.id }}" {% if d.id==est.division_id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Scope of Work *</label>
+          <textarea name="scope_of_work" class="form-control" rows="2" required>{{ est.scope_of_work }}</textarea>
+        </div>
+
+        <!-- KW -->
+        <div class="col-12">
+          <hr style="border-color:var(--border)">
+          <div style="background:var(--blue-subtle);border:1px solid var(--border-blue);border-radius:9px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:600;color:var(--blue-bright);letter-spacing:0.6px;margin-bottom:10px;">
+              <i class="bi bi-lightning-charge-fill me-1"></i>KVA LOAD — Security Deposit, Fixed &amp; GETCO charges are multiplied by KVA
+            </div>
+            <div class="row g-3 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label">KVA Amount *</label>
+                <input type="number" name="kw_amount" id="kwInput" class="form-control"
+                       step="0.1" min="0.1" required value="{{ est.kw_amount or 1 }}">
+              </div>
+              <div class="col-md-9">
+                <div style="background:var(--navy-3);border:1px solid var(--border-blue);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:12px;color:var(--text-muted);">Calculated Total</span>
+                  <span id="liveTotal" style="font-size:22px;font-weight:700;color:var(--blue-bright);">₹0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12"><small style="color:var(--blue-bright);font-weight:600;font-size:11px;letter-spacing:0.6px;">RATE PER KW — MANDATORY</small></div>
+        {% for fname, label, val in [
+          ('security_deposit','Security Deposit / KW', est.security_deposit / (est.kw_amount or 1)),
+          ('fixed_charges',   'Fixed Charges / KW',   est.fixed_charges    / (est.kw_amount or 1)),
+          ('getco_charge',    'GETCO Charge / KW',    est.getco_charge     / (est.kw_amount or 1))] %}
+        <div class="col-md-4">
+          <label class="form-label">{{ label }} *</label>
+          <div class="input-group">
+            <span class="input-group-text" style="background:var(--navy-3);border-color:var(--border);color:var(--text-muted);">₹</span>
+            <input type="number" name="{{ fname }}" class="form-control charge-input" step="0.01" min="0.01" required value="{{ '%.4f'|format(val) }}">
+          </div>
+        </div>
+        {% endfor %}
+
+        <div class="col-12"><hr style="border-color:var(--border)"><small style="color:var(--text-muted);font-weight:600;font-size:11px;letter-spacing:0.6px;">OPTIONAL CHARGES — FIXED AMOUNT (not multiplied by KVA)</small></div>
+        {% for fname, label, val in [
+          ('feeder_charge',     'Feeder Charge / KW',     (est.feeder_charge or 0)     / (est.kw_amount or 1)),
+          ('agreement_charges', 'Agreement Charges / KW', (est.agreement_charges or 0) / (est.kw_amount or 1))] %}
+        <div class="col-md-6">
+          <label class="form-label">{{ label }}</label>
+          <div class="input-group">
+            <span class="input-group-text" style="background:var(--navy-3);border-color:var(--border);color:var(--text-muted);">₹</span>
+            <input type="number" name="{{ fname }}" class="form-control charge-input" step="0.01" min="0" value="{{ '%.4f'|format(val) }}">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>Update Estimate</button>
+        <a href="{{ url_for('estimates') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const inr = v => '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits:2});
+function recalc() {
+  const kva = parseFloat(document.getElementById('kwInput').value) || 0;
+  // sec, fixed, getco are multiplied; feeder, agr are fixed
+  const inputs = document.querySelectorAll('.charge-input');
+  let total = 0;
+  inputs.forEach((el, idx) => {
+    const val = parseFloat(el.value) || 0;
+    total += (idx < 3) ? val * kva : val; // first 3 are per-KVA rates
+  });
+  document.getElementById('liveTotal').textContent = inr(total);
+}
+document.getElementById('kwInput').addEventListener('input', recalc);
+document.querySelectorAll('.charge-input').forEach(el => el.addEventListener('input', recalc));
+document.addEventListener('DOMContentLoaded', recalc);
+</script>
+{% endblock %}

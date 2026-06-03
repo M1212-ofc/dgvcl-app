@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block head %}<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div><h4>Reports & Analytics</h4><p>Filter, view, and export estimate data</p></div>
+  <div class="d-flex gap-2" id="exportBtns" style="display:none!important">
+    <a id="btnExcel" href="#" class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+    </a>
+    <a id="btnPdf" href="#" class="btn btn-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+    </a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+  <div class="card-header"><i class="bi bi-funnel me-2" style="color:var(--blue)"></i>Filters</div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Division</label>
+        <select id="rDiv" class="form-select">
+          <option value="">All Divisions</option>
+          {% for d in divisions %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Party</label>
+        <select id="rParty" class="form-select">
+          <option value="">All Parties</option>
+          {% for p in parties %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">From Date</label>
+        <input type="date" id="rFrom" class="form-control">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">To Date</label>
+        <input type="date" id="rTo" class="form-control">
+      </div>
+      <div class="col-md-2 d-flex align-items-end gap-2">
+        <button class="btn btn-primary" onclick="runReport()"><i class="bi bi-search me-1"></i>Run</button>
+        <button class="btn btn-outline-secondary" onclick="clearReport()"><i class="bi bi-x-circle"></i></button>
+      </div>
+    </div>
+    <!-- Period selector for chart only -->
+    <div class="row mt-3">
+      <div class="col-auto" style="font-size:12px;color:var(--text-muted);padding-top:6px;">Chart period:</div>
+      {% for v, l in [('monthly','Monthly'),('quarterly','Quarterly'),('halfyear','Half Year'),('yearly','Yearly')] %}
+      <div class="col-auto">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="rPeriod" id="p_{{ v }}" value="{{ v }}" {% if v=='monthly' %}checked{% endif %} onchange="updateChart()">
+          <label class="form-check-label" for="p_{{ v }}" style="font-size:13px;color:var(--text-muted);">{{ l }}</label>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="row g-2 mb-3" id="rSummary" style="display:none"></div>
+
+<!-- Bar Chart (view only, not in exports) -->
+<div class="card mb-3" id="rChartCard" style="display:none">
+  <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <span><i class="bi bi-bar-chart me-2" style="color:var(--blue)"></i>Charge Breakdown <small style="color:var(--text-muted);font-size:11px;">(view only — not included in exports)</small></span>
+    <div class="d-flex gap-3" style="font-size:11px;">
+      <span style="display:flex;align-items:center;gap:4px;color:var(--text-muted)"><span style="width:10px;height:10px;border-radius:2px;background:#1e6fff;display:inline-block"></span>Security Deposit</span>
+      <span style="display:flex;align-items:center;gap:4px;color:var(--text-muted)"><span style="width:10px;height:10px;border-radius:2px;background:#00c9a7;display:inline-block"></span>Fixed Charges</span>
+      <span style="display:flex;align-items:center;gap:4px;color:var(--text-muted)"><span style="width:10px;height:10px;border-radius:2px;background:#f5a623;display:inline-block"></span>GETCO Charge</span>
+
+    </div>
+  </div>
+  <div class="card-body">
+    <div style="position:relative;height:240px;">
+      <canvas id="rChart" role="img" aria-label="Report charge breakdown chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card" id="rTableCard" style="display:none">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-table me-2" style="color:var(--blue)"></i>Detailed Records</span>
+    <span id="rCount" style="font-size:12px;color:var(--text-muted);"></span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr>
+          <th>#</th><th>Date</th><th>Party</th><th>Division</th><th>Scope</th>
+          <th>KVA</th><th>Sec. Dep.</th><th>Fixed Chg.</th><th>GETCO Chg.</th>
+          <th>Feeder</th><th>Agreement</th><th>Total</th>
+        </tr></thead>
+        <tbody id="rBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const inr = v => '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits:2});
+let rChartInst = null;
+let allRows = [];
+
+function clearReport() {
+  ['rDiv','rParty','rFrom','rTo'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('rSummary').style.display='none';
+  document.getElementById('rChartCard').style.display='none';
+  document.getElementById('rTableCard').style.display='none';
+  document.getElementById('exportBtns').style.display='none';
+  allRows = [];
+}
+
+function updateChart() {
+  if (!allRows.length) return;
+  const period = document.querySelector('input[name=rPeriod]:checked').value;
+  const groups = {};
+  allRows.forEach(r => {
+    const d = new Date(r.date);
+    let key;
+    if (period==='monthly')   key = d.toLocaleString('default',{month:'short'})+' '+d.getFullYear();
+    else if (period==='quarterly') key = 'Q'+(Math.floor(d.getMonth()/3)+1)+' '+d.getFullYear();
+    else if (period==='halfyear')  key = d.getMonth()<6?'H1':'H2';
+    else key = String(d.getFullYear());
+    if (!groups[key]) groups[key]={sec:0,fixed:0,getco:0};
+    groups[key].sec    += r.security_deposit;
+    groups[key].fixed  += r.fixed_charges;
+    groups[key].getco  += r.getco_charge;
+
+  });
+  const labels = Object.keys(groups), vals = Object.values(groups);
+  if (rChartInst) rChartInst.destroy();
+  rChartInst = new Chart(document.getElementById('rChart'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label:'Security Deposit', data:vals.map(v=>v.sec),    backgroundColor:'#1e6fff', borderRadius:4 },
+      { label:'Fixed Charges',    data:vals.map(v=>v.fixed),  backgroundColor:'#00c9a7', borderRadius:4 },
+      { label:'GETCO Charge',     data:vals.map(v=>v.getco),  backgroundColor:'#f5a623', borderRadius:4 },
+
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{color:'#7a8db0',font:{size:11}}, grid:{color:'rgba(255,255,255,0.05)'} },
+        y:{ ticks:{color:'#7a8db0',font:{size:11},
+                   callback:v=>v>=100000?'₹'+(v/100000).toFixed(1)+'L':'₹'+v},
+            grid:{color:'rgba(255,255,255,0.05)'} }
+      }
+    }
+  });
+}
+
+async function runReport() {
+  const params = new URLSearchParams();
+  const div   = document.getElementById('rDiv').value;
+  const party = document.getElementById('rParty').value;
+  const from  = document.getElementById('rFrom').value;
+  const to    = document.getElementById('rTo').value;
+  if (div)   params.append('division_id', div);
+  if (party) params.append('party_id', party);
+  if (from)  params.append('from', from);
+  if (to)    params.append('to', to);
+
+  allRows = await fetch('/api/estimates?' + params).then(r=>r.json());
+
+  // Summary cards
+  let totSec=0,totFixed=0,totGetco=0,totFeeder=0,totAll=0;
+  allRows.forEach(r=>{
+    totSec+=r.security_deposit; totFixed+=r.fixed_charges;
+    totGetco+=r.getco_charge; totFeeder+=(r.feeder_charge||0); totAll+=r.total;
+  });
+  const sumEl = document.getElementById('rSummary');
+  sumEl.innerHTML = [
+    ['Records',       allRows.length, 'var(--blue-bright)'],
+    ['Security Dep.', inr(totSec),    'var(--blue-bright)'],
+    ['Fixed Charges', inr(totFixed),  'var(--success)'],
+    ['GETCO Charge',  inr(totGetco),  'var(--warning)'],
+    ['Feeder Charge', inr(totFeeder), '#a855f7'],
+    ['Grand Total',   inr(totAll),    'var(--blue-bright)'],
+  ].map(([l,v,c]) => `
+    <div class="col-6 col-md-2">
+      <div class="stat-card" style="padding:12px 14px;">
+        <div class="stat-label">${l}</div>
+        <div class="stat-value" style="font-size:15px;color:${c}">${v}</div>
+      </div>
+    </div>`).join('');
+  sumEl.style.display = 'flex';
+  sumEl.style.flexWrap = 'wrap';
+
+  // Chart
+  document.getElementById('rChartCard').style.display = '';
+  updateChart();
+
+  // Table
+  document.getElementById('rCount').textContent = allRows.length + ' records';
+  document.getElementById('rBody').innerHTML = allRows.length
+    ? allRows.map((r,i) => `
+        <tr>
+          <td style="color:var(--text-dim)">${i+1}</td>
+          <td class="mono" style="font-size:12px;">${r.date}</td>
+          <td style="font-weight:500;">${r.party_name}</td>
+          <td style="font-size:11px;color:var(--text-muted);">${(r.division_name||'—').split('–')[0].trim()}</td>
+          <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:12px;">${r.scope_of_work}</td>
+          <td style="font-weight:700;color:var(--blue-bright);">${r.kw_amount||1} KVA</td>
+          <td>${inr(r.security_deposit)}</td>
+          <td>${inr(r.fixed_charges)}</td>
+          <td>${inr(r.getco_charge)}</td>
+          <td>${inr(r.feeder_charge||0)}</td>
+          <td>${inr(r.agreement_charges||0)}</td>
+          <td style="font-weight:600;">${inr(r.total)}</td>
+        </tr>`).join('')
+    : '<tr><td colspan="12" class="text-center py-4" style="color:var(--text-muted)">No records match the selected filters.</td></tr>';
+  document.getElementById('rTableCard').style.display = '';
+
+  // Export buttons — pass current filters as query params
+  const exportBtns = document.getElementById('exportBtns');
+  if (allRows.length) {
+    document.getElementById('btnExcel').href = '/reports/export/excel?' + params;
+    document.getElementById('btnPdf').href   = '/reports/export/pdf?'   + params;
+    exportBtns.style.display = 'flex';
+  } else {
+    exportBtns.style.display = 'none';
+  }
+}
+</script>
+{% endblock %}

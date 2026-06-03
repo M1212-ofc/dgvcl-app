@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+.period-btn {
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  display: inline-block;
+}
+.period-btn:hover { background: var(--blue-subtle); color: var(--blue-bright); border-color: var(--border-blue); }
+.period-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 0 12px var(--blue-glow); }
+.div-row { display: grid; grid-template-columns: 1fr 140px 80px 130px; align-items: center; padding: 11px 18px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.div-row:last-child { border-bottom: none; }
+.div-row:hover { background: var(--blue-subtle); }
+.div-header { display: grid; grid-template-columns: 1fr 140px 80px 130px; padding: 8px 18px; border-bottom: 1px solid var(--border); }
+.div-header span { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header row with period filters -->
+<div class="d-flex align-items-start justify-content-between flex-wrap gap-3 mb-4">
+  <div>
+    <h4 style="font-size:20px;font-weight:700;margin:0;color:#fff;">DGVCL Estimate Overview</h4>
+    <p style="font-size:13px;color:var(--text-muted);margin:3px 0 0;">{{ now.strftime('%A, %d %B %Y') }} &nbsp;·&nbsp; <span style="color:var(--blue-bright);">{{ period_label }}</span></p>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+    {% for val, label in [('today','Today'),('week','Week'),('month','Month'),('6month','6 Months'),('year','Year'),('all','All Time')] %}
+    <a href="{{ url_for('dashboard', period=val) }}" class="period-btn {% if period==val %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+    <!-- Custom range toggle -->
+    <button class="period-btn {% if period=='custom' %}active{% endif %}"
+            onclick="document.getElementById('customRangeRow').style.display=document.getElementById('customRangeRow').style.display==='none'?'flex':'none'"
+            type="button" id="customBtn">
+      <i class="bi bi-calendar-range" style="font-size:11px;margin-right:3px;"></i>Custom
+    </button>
+  </div>
+  <!-- Custom date range form -->
+  <div id="customRangeRow" style="display:{% if period=='custom' %}flex{% else %}none{% endif %};gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+    <form method="GET" action="{{ url_for('dashboard') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="hidden" name="period" value="custom">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <label style="font-size:12px;color:var(--text-muted);">From</label>
+        <input type="date" name="from" value="{{ custom_from }}"
+               style="background:var(--navy-3);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 10px;font-size:12px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <label style="font-size:12px;color:var(--text-muted);">To</label>
+        <input type="date" name="to" value="{{ custom_to }}"
+               style="background:var(--navy-3);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 10px;font-size:12px;">
+      </div>
+      <button type="submit" class="period-btn active" style="padding:5px 14px;">
+        <i class="bi bi-search" style="font-size:11px;margin-right:3px;"></i>Apply
+      </button>
+      {% if period=='custom' %}
+      <a href="{{ url_for('dashboard', period='month') }}" class="period-btn" style="padding:5px 12px;">
+        <i class="bi bi-x" style="font-size:12px;"></i>Clear
+      </a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div style="background:var(--navy-3);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;">
+      <div style="position:absolute;right:16px;top:16px;width:36px;height:36px;border-radius:9px;background:var(--blue-subtle);display:flex;align-items:center;justify-content:center;">
+        <i class="bi bi-file-earmark-text-fill" style="color:var(--blue-bright);font-size:16px;"></i>
+      </div>
+      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Total Estimates</div>
+      <div style="font-size:28px;font-weight:700;color:#fff;">{{ stats.total_estimates }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">{{ period_label }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div style="background:var(--navy-3);border:1px solid rgba(30,111,255,0.25);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;">
+      <div style="position:absolute;right:16px;top:16px;width:36px;height:36px;border-radius:9px;background:var(--blue-subtle);display:flex;align-items:center;justify-content:center;">
+        <i class="bi bi-shield-lock-fill" style="color:var(--blue-bright);font-size:16px;"></i>
+      </div>
+      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Avg. Security Deposit</div>
+      <div style="font-size:22px;font-weight:700;color:var(--blue-bright);">₹{{ '{:,.0f}'.format(stats.avg_security) }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">avg. per KVA rate</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div style="background:var(--navy-3);border:1px solid rgba(0,201,167,0.2);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;">
+      <div style="position:absolute;right:16px;top:16px;width:36px;height:36px;border-radius:9px;background:rgba(0,201,167,0.1);display:flex;align-items:center;justify-content:center;">
+        <i class="bi bi-receipt-cutoff" style="color:var(--success);font-size:16px;"></i>
+      </div>
+      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Avg. Fixed Charges</div>
+      <div style="font-size:22px;font-weight:700;color:var(--success);">₹{{ '{:,.0f}'.format(stats.avg_fixed) }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">avg. per KVA rate</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div style="background:var(--navy-3);border:1px solid rgba(245,166,35,0.2);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;">
+      <div style="position:absolute;right:16px;top:16px;width:36px;height:36px;border-radius:9px;background:rgba(245,166,35,0.1);display:flex;align-items:center;justify-content:center;">
+        <i class="bi bi-plug-fill" style="color:var(--warning);font-size:16px;"></i>
+      </div>
+      <div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Avg. GETCO Charges</div>
+      <div style="font-size:22px;font-weight:700;color:var(--warning);">₹{{ '{:,.0f}'.format(stats.avg_getco) }}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">avg. per KVA rate</div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div style="background:var(--navy-2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+    <span style="font-size:14px;font-weight:600;color:var(--text);">
+      <i class="bi bi-bar-chart-line me-2" style="color:var(--blue);"></i>Monthly Charge Breakdown ({{ now.year }})
+    </span>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      {% for color, label in [('#1e6fff','Security Deposit'),('#00c9a7','Fixed Charges'),('#f5a623','GETCO Charge')] %}
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);">
+        <span style="width:10px;height:10px;border-radius:2px;background:{{ color }};display:inline-block;"></span>{{ label }}
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+  <div style="position:relative;height:240px;">
+    <canvas id="chartMain" role="img" aria-label="Monthly charge breakdown chart"></canvas>
+  </div>
+</div>
+
+<!-- Bottom row: Division Summary + Recent Estimates -->
+<div class="row g-3">
+  <!-- Division Summary -->
+  <div class="col-lg-5">
+    <div style="background:var(--navy-2);border:1px solid var(--border);border-radius:12px;height:100%;">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+        <i class="bi bi-building" style="color:var(--blue);font-size:15px;"></i>
+        <span style="font-size:13px;font-weight:600;">Division Summary</span>
+        <span style="font-size:11px;color:var(--text-dim);margin-left:auto;">{{ period_label }}</span>
+      </div>
+      <div class="div-header">
+        <span>Division</span>
+        <span>Location</span>
+        <span style="text-align:center;">Count</span>
+        <span style="text-align:right;">Total</span>
+      </div>
+      {% for d in div_stats %}
+      <div class="div-row">
+        <div style="font-weight:500;font-size:12px;">{{ d.name.split('–')[0].strip() }}<br><span style="font-size:10px;color:var(--text-dim);font-weight:400;">{{ d.name.split('–')[1].strip() if '–' in d.name else '' }}</span></div>
+        <div style="font-size:11px;color:var(--text-muted);"><i class="bi bi-geo-alt" style="font-size:10px;"></i> {{ d.location or '—' }}</div>
+        <div style="text-align:center;font-size:13px;font-weight:600;color:{% if d.est_count > 0 %}var(--blue-bright){% else %}var(--text-dim){% endif %};">{{ d.est_count }}</div>
+        <div style="text-align:right;font-size:13px;font-weight:600;color:{% if d.grand_total > 0 %}var(--blue-bright){% else %}var(--text-dim){% endif %};">₹{{ '{:,.0f}'.format(d.grand_total) }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Recent Estimates -->
+  <div class="col-lg-7">
+    <div style="background:var(--navy-2);border:1px solid var(--border);border-radius:12px;height:100%;">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;">
+          <i class="bi bi-clock-history" style="color:var(--blue);font-size:15px;"></i>Recent Estimates
+        </span>
+        <a href="{{ url_for('estimates') }}" style="font-size:12px;color:var(--blue-bright);text-decoration:none;">View All →</a>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              {% for h in ['Date','Party','KW','Sec. Dep.','Fixed','GETCO','Total'] %}
+              <th style="padding:9px 14px;color:var(--text-dim);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;text-align:{% if loop.index > 3 %}right{% else %}left{% endif %};">{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in recent %}
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:9px 14px;font-family:monospace;font-size:11px;color:var(--text-muted);">{{ e.date }}</td>
+              <td style="padding:9px 14px;font-weight:500;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.party_name }}</td>
+              <td style="padding:9px 14px;font-weight:700;color:var(--blue-bright);">{{ e.kw_amount or 1 }} KVA</td>
+              <td style="padding:9px 14px;text-align:right;">₹{{ '{:,.0f}'.format(e.security_deposit) }}</td>
+              <td style="padding:9px 14px;text-align:right;">₹{{ '{:,.0f}'.format(e.fixed_charges) }}</td>
+              <td style="padding:9px 14px;text-align:right;">₹{{ '{:,.0f}'.format(e.getco_charge) }}</td>
+              <td style="padding:9px 14px;text-align:right;font-weight:600;color:var(--blue-bright);">₹{{ '{:,.0f}'.format(e.security_deposit+e.fixed_charges+e.getco_charge+(e.feeder_charge or 0)+(e.agreement_charges or 0)) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="padding:28px;text-align:center;color:var(--text-dim);">
+              No estimates for {{ period_label }}. <a href="{{ url_for('estimates') }}" style="color:var(--blue-bright);">Add one →</a>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartData = {{ chart | tojson }};
+new Chart(document.getElementById('chartMain'), {
+  type: 'bar',
+  data: {
+    labels: chartData.map(d => d.label),
+    datasets: [
+      { label:'Security Deposit', data:chartData.map(d=>d.sec_dep), backgroundColor:'#1e6fff', borderRadius:4, borderSkipped:false },
+      { label:'Fixed Charges',    data:chartData.map(d=>d.fixed),   backgroundColor:'#00c9a7', borderRadius:4, borderSkipped:false },
+      { label:'GETCO Charge',     data:chartData.map(d=>d.getco),   backgroundColor:'#f5a623', borderRadius:4, borderSkipped:false },
+
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false},
+              tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': ₹'+Number(ctx.raw).toLocaleString('en-IN') } } },
+    scales:{
+      x:{ ticks:{color:'#4a5a7a',font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'} },
+      y:{ ticks:{color:'#4a5a7a',font:{size:11},
+                 callback:v=>v>=100000?'₹'+(v/100000).toFixed(1)+'L':v>=1000?'₹'+(v/1000).toFixed(0)+'K':'₹'+v},
+          grid:{color:'rgba(255,255,255,0.04)'} }
+    }
+  }
+});
+</script>
+{% endblock %}

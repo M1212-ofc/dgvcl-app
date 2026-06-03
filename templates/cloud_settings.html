@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Cloud / DB{% endblock %}
+{% block page_title %}Cloud Settings{% endblock %}
+{% block content %}
+<div class="page-header"><h4>Cloud / Database Settings</h4><p>Connect to Supabase for cloud backup and sync</p></div>
+<div class="row g-3">
+  <!-- Keys -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-key-fill me-2" style="color:var(--blue)"></i>Supabase Credentials</div>
+      <div class="card-body">
+        {% if not file_exists %}
+        <div class="alert alert-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>config.xlsx not found. Saving will create it.</div>
+        {% endif %}
+        <form method="POST">
+          <input type="hidden" name="action" value="save_keys">
+          <div class="mb-3"><label class="form-label">Supabase URL</label>
+            <input name="url" class="form-control mono" placeholder="https://xxxx.supabase.co"
+                   value="{{ masked.get('SUPABASE_URL','') }}"></div>
+          <div class="mb-3"><label class="form-label">Secret Key (sb_secret_…)</label>
+            <input name="key" class="form-control mono" type="password" placeholder="sb_secret_…"
+                   value="{{ masked.get('SUPABASE_ANON_KEY','') }}"></div>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>Save Keys</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="col-lg-6">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-cloud me-2" style="color:var(--blue)"></i>Sync Actions</div>
+      <div class="card-body d-flex flex-column gap-2">
+        <form method="POST" class="d-flex gap-2">
+          <input type="hidden" name="action" value="test">
+          <button class="btn btn-outline-primary flex-fill"><i class="bi bi-wifi me-1"></i>Test Connection</button>
+        </form>
+        <form method="POST" class="d-flex gap-2">
+          <input type="hidden" name="action" value="push">
+          <button class="btn btn-outline-secondary flex-fill"><i class="bi bi-cloud-upload me-1"></i>Push Local → Supabase</button>
+        </form>
+        <form method="POST" class="d-flex gap-2">
+          <input type="hidden" name="action" value="pull">
+          <button class="btn btn-outline-secondary flex-fill"><i class="bi bi-cloud-download me-1"></i>Pull Supabase → Local</button>
+        </form>
+        <form method="POST" class="d-flex gap-2">
+          <input type="hidden" name="action" value="get_sql">
+          <button class="btn btn-outline-secondary flex-fill"><i class="bi bi-terminal me-1"></i>Show SQL Setup Script</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-info-circle me-2" style="color:var(--blue)"></i>Current Status</div>
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2">
+          <span style="width:10px;height:10px;border-radius:50%;background:{{ 'var(--success)' if cloud_enabled else 'var(--danger)' }};display:inline-block;"></span>
+          <span style="font-size:13px;">{{ 'Supabase connected ☁' if cloud_enabled else 'Using local SQLite only 💾' }}</span>
+        </div>
+        <div class="mt-2" style="font-size:12px;color:var(--text-muted);">
+          SQLite file: <span class="mono">dgvcl.db</span> (on PythonAnywhere server)<br>
+          Remember to click <strong>Run</strong> on PythonAnywhere every ~3 months to keep the free account active.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SQL script -->
+  {% if sql %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-terminal me-2" style="color:var(--blue)"></i>Supabase SQL Setup — paste in SQL Editor → Run ▶</div>
+      <div class="card-body p-0">
+        <pre class="mono" style="background:var(--navy);color:#a8d8a8;padding:16px;margin:0;font-size:12px;overflow-x:auto;border-radius:0 0 12px 12px;">{{ sql }}</pre>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

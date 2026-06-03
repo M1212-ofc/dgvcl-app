@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Parties{% endblock %}
+{% block page_title %}Party Details{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div><h4>Party Details</h4><p>Registered clients / parties for DGVCL estimates</p></div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPartyModal">
+    <i class="bi bi-plus-lg me-1"></i>Add Party
+  </button>
+</div>
+<div class="row g-3">
+  {% for p in parties %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 0 10px var(--blue-glow);">
+            {{ p.name[:2].upper() }}
+          </div>
+          <div style="overflow:hidden;">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</div>
+            <div style="font-size:11px;color:var(--text-muted);">{{ p.division_name or 'No division' }}</div>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:10px;">
+          {% for icon, val in [('bi-telephone', p.contact or '—'), ('bi-envelope', p.email or '—'),
+                                ('bi-geo-alt', p.address or '—'), ('bi-receipt-cutoff', p.gst or '—')] %}
+          <div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text-muted);margin-bottom:5px;">
+            <i class="bi {{ icon }}" style="font-size:13px;flex-shrink:0;margin-top:1px;"></i>
+            <span style="word-break:break-all;">{{ val }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <div style="flex:1;background:var(--blue-subtle);border-radius:7px;padding:7px 10px;text-align:center;">
+            <div style="font-size:10px;color:var(--blue-bright);">Estimates</div>
+            <div style="font-size:16px;font-weight:600;color:var(--blue-bright);">{{ p.est_count }}</div>
+          </div>
+          <div style="flex:1;background:rgba(0,201,167,0.08);border-radius:7px;padding:7px 10px;text-align:center;">
+            <div style="font-size:10px;color:var(--success);">Total Value</div>
+            <div style="font-size:13px;font-weight:600;color:var(--success);">₹{{ '{:,.0f}'.format(p.total_value) }}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          <a href="{{ url_for('party_edit', pid=p.id) }}" class="btn btn-outline-secondary btn-sm flex-fill">
+            <i class="bi bi-pencil me-1"></i>Edit
+          </a>
+          {% if session.get('role')=='admin' %}
+          <form method="POST" action="{{ url_for('party_delete', pid=p.id) }}" onsubmit="return confirm('Delete {{ p.name }}?')">
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12"><div class="card"><div class="card-body text-center py-5" style="color:var(--text-muted);">
+    No parties yet. Add your first party above.
+  </div></div></div>
+  {% endfor %}
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addPartyModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-person-plus me-2" style="color:var(--blue)"></i>Add Party</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST" action="{{ url_for('party_add') }}">
+        <div class="modal-body row g-3">
+          <div class="col-12"><label class="form-label">Party Name <span class="required-star">*</span></label>
+            <input name="name" class="form-control" required placeholder="Company / individual name"></div>
+          <div class="col-md-6"><label class="form-label">Contact</label>
+            <input name="contact" class="form-control" placeholder="Phone number"></div>
+          <div class="col-md-6"><label class="form-label">Email</label>
+            <input name="email" type="email" class="form-control" placeholder="email@example.com"></div>
+          <div class="col-12"><label class="form-label">Address</label>
+            <input name="address" class="form-control" placeholder="Full address"></div>
+          <div class="col-12"><label class="form-label">GST Number</label>
+            <input name="gst" class="form-control" placeholder="24XXXXX…"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Party</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Role{% endblock %}
+{% block page_title %}{{ action }} Role{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4>{{ action }} Role</h4>
+  <p>Configure which pages this role can view, edit, or delete</p>
+</div>
+<form method="POST">
+  <div class="row g-3">
+    <!-- Role details -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-shield me-2" style="color:var(--blue)"></i>Role Details</div>
+        <div class="card-body row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Role Name *</label>
+            <input name="name" class="form-control" required value="{{ role.name if role else '' }}" placeholder="e.g. Manager">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Description</label>
+            <input name="description" class="form-control" value="{{ role.description if role else '' }}" placeholder="Brief description of this role">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Permissions matrix -->
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-lock me-2" style="color:var(--blue)"></i>Page Permissions</div>
+        <div class="card-body p-0">
+          <table class="table mb-0" style="font-size:13px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);">
+                <th style="padding:12px 18px;color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;">Page</th>
+                <th style="padding:12px 18px;text-align:center;color:var(--blue-bright);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;">
+                  <i class="bi bi-eye me-1"></i>View
+                </th>
+                <th style="padding:12px 18px;text-align:center;color:var(--success);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;">
+                  <i class="bi bi-pencil me-1"></i>Edit / Add
+                </th>
+                <th style="padding:12px 18px;text-align:center;color:var(--danger);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;">
+                  <i class="bi bi-trash me-1"></i>Delete
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for page in pages %}
+              {% set p = perms.get(page, {}) %}
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:12px 18px;font-weight:500;text-transform:capitalize;">
+                  {% set icons = {'dashboard':'bi-grid-1x2-fill','divisions':'bi-building','parties':'bi-people-fill','estimates':'bi-file-earmark-text-fill','reports':'bi-bar-chart-line-fill','users':'bi-person-gear','roles':'bi-shield-fill'} %}
+                  <i class="bi {{ icons.get(page,'bi-circle') }} me-2" style="color:var(--blue-bright);font-size:13px;"></i>
+                  {{ page.title() }}
+                </td>
+                <td style="text-align:center;padding:12px 18px;">
+                  <div class="form-check d-flex justify-content-center">
+                    <input class="form-check-input" type="checkbox" name="{{ page }}_view" id="{{ page }}_view"
+                           {% if p.get('view', 1) %}checked{% endif %}
+                           style="width:18px;height:18px;cursor:pointer;">
+                  </div>
+                </td>
+                <td style="text-align:center;padding:12px 18px;">
+                  <div class="form-check d-flex justify-content-center">
+                    <input class="form-check-input" type="checkbox" name="{{ page }}_edit" id="{{ page }}_edit"
+                           {% if p.get('edit', 0) %}checked{% endif %}
+                           style="width:18px;height:18px;cursor:pointer;">
+                  </div>
+                </td>
+                <td style="text-align:center;padding:12px 18px;">
+                  <div class="form-check d-flex justify-content-center">
+                    <input class="form-check-input" type="checkbox" name="{{ page }}_delete" id="{{ page }}_delete"
+                           {% if p.get('delete', 0) %}checked{% endif %}
+                           style="width:18px;height:18px;cursor:pointer;">
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>Save Role</button>
+    <a href="{{ url_for('roles_list') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+
+<style>
+.form-check-input:checked { background-color: var(--blue); border-color: var(--blue); }
+.form-check-input:focus { box-shadow: 0 0 0 3px var(--blue-glow); }
+.form-check-input { background-color: var(--navy-3); border-color: var(--border); }
+</style>
+{% endblock %}

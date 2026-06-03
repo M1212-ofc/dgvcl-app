@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Users{% endblock %}
+{% block page_title %}Users{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div><h4>Users</h4><p>Manage login accounts and assign roles</p></div>
+  {% if g_permissions.get('users',{}).get('edit') %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+    <i class="bi bi-person-plus me-1"></i>Add User
+  </button>
+  {% endif %}
+</div>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>#</th><th>Username</th><th>Full Name</th><th>Role</th><th>Status</th><th>Created</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td style="color:var(--text-dim)">{{ loop.index }}</td>
+          <td style="font-weight:600;" class="mono">{{ u.username }}</td>
+          <td>{{ u.full_name or '—' }}</td>
+          <td>
+            <span class="status-badge {% if u.role_name=='Admin' %}badge-approved{% elif u.role_name=='Viewer' %}badge-pending{% else %}badge-pending{% endif %}"
+                  style="background:var(--blue-subtle);color:var(--blue-bright);border-color:var(--border-blue);">
+              {{ u.role_name or 'No Role' }}
+            </span>
+          </td>
+          <td><span class="status-badge {% if u.active %}badge-approved{% else %}badge-rejected{% endif %}">{{ 'Active' if u.active else 'Inactive' }}</span></td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ u.created_at[:10] if u.created_at else '—' }}</td>
+          <td>
+            {% if u.id != session.user_id and g_permissions.get('users',{}).get('delete') %}
+            <form method="POST" action="{{ url_for('user_delete', uid=u.id) }}" onsubmit="return confirm('Delete {{ u.username }}?')">
+              <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+            </form>
+            {% elif u.id == session.user_id %}
+            <span style="font-size:11px;color:var(--text-dim);">You</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if g_permissions.get('users',{}).get('edit') %}
+<div class="modal fade" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Add User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST" action="{{ url_for('user_add') }}">
+        <div class="modal-body row g-3">
+          <div class="col-md-6"><label class="form-label">Username *</label><input name="username" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Password *</label><input name="password" type="password" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Full Name</label><input name="full_name" class="form-control"></div>
+          <div class="col-md-6">
+            <label class="form-label">Role *</label>
+            <select name="role_id" class="form-select" required>
+              {% for r in roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

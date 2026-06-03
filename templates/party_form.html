@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Edit Party{% endblock %}
+{% block page_title %}Edit Party{% endblock %}
+{% block content %}
+<div class="page-header"><h4>Edit Party</h4></div>
+<div class="card" style="max-width:560px;">
+  <div class="card-body">
+    <form method="POST">
+      <div class="row g-3">
+        <div class="col-12"><label class="form-label">Party Name *</label>
+          <input name="name" class="form-control" required value="{{ party.name }}"></div>
+        <div class="col-md-6"><label class="form-label">Contact</label>
+          <input name="contact" class="form-control" value="{{ party.contact or '' }}"></div>
+        <div class="col-md-6"><label class="form-label">Email</label>
+          <input name="email" type="email" class="form-control" value="{{ party.email or '' }}"></div>
+        <div class="col-12"><label class="form-label">Address</label>
+          <input name="address" class="form-control" value="{{ party.address or '' }}"></div>
+        <div class="col-md-6"><label class="form-label">GST Number</label>
+          <input name="gst" class="form-control" value="{{ party.gst or '' }}"></div>
+        <div class="col-md-6"><label class="form-label">Division</label>
+          <select name="division_id" class="form-select">
+            <option value="">— None —</option>
+            {% for d in divisions %}<option value="{{ d.id }}" {% if d.id==party.division_id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          </select></div>
+      </div>
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>Update Party</button>
+        <a href="{{ url_for('parties') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
