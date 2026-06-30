@@ -419,8 +419,8 @@
       <div class="avatar">{{ (session.get('full_name') or session.get('username','?'))[0].upper() }}</div>
       <span>{{ session.get('full_name') or session.get('username') }}</span><span style="font-size:10px;background:var(--blue-subtle);color:var(--blue-bright);padding:2px 7px;border-radius:10px;border:1px solid var(--border-blue);">{{ session.get('role_name','') }}</span>
       <span class="text-muted mx-1">·</span>
-      <a href="{{ url_for('logout') }}" class="text-muted text-decoration-none" style="font-size:12px;">
-        <i class="bi bi-box-arrow-right"></i>
+      <a href="{{ url_for('logout') }}" class="text-muted text-decoration-none" style="font-size:12px;display:flex;align-items:center;gap:4px;" title="Logout">
+        <i class="bi bi-box-arrow-right"></i><span>Logout</span>
       </a>
     </div>
   </div>
