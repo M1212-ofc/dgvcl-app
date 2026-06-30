@@ -212,11 +212,57 @@ def division_add():
         return redirect(url_for('divisions'))
     db = get_db()
     try:
-        db.execute("INSERT INTO dgvcl_divisions (name,location) VALUES (?,?)", (name, location))
+        cur = db.execute("INSERT INTO dgvcl_divisions (name,location) VALUES (?,?)", (name, location))
         db.commit()
+        sync_insert('dgvcl_divisions', {'id': cur.lastrowid, 'name': name, 'location': location})
         flash('Division added.', 'success')
     except Exception:
         flash('Division name already exists.', 'danger')
+    db.close()
+    return redirect(url_for('divisions'))
+
+@app.route('/divisions/edit/<int:did>', methods=['GET','POST'])
+@perm('divisions','edit')
+def division_edit(did):
+    db = get_db()
+    if request.method == 'POST':
+        name = request.form.get('name','').strip()
+        location = request.form.get('location','').strip()
+        if not name:
+            flash('Division name is required.', 'danger')
+            db.close()
+            return redirect(url_for('division_edit', did=did))
+        try:
+            db.execute("UPDATE dgvcl_divisions SET name=?, location=? WHERE id=?", (name, location, did))
+            db.commit()
+            sync_update('dgvcl_divisions', did, {'name': name, 'location': location})
+            flash('Division updated.', 'success')
+            db.close()
+            return redirect(url_for('divisions'))
+        except Exception:
+            flash('Division name already exists.', 'danger')
+            db.close()
+            return redirect(url_for('division_edit', did=did))
+    division = db.execute("SELECT * FROM dgvcl_divisions WHERE id=?", (did,)).fetchone()
+    db.close()
+    if not division:
+        flash('Division not found.', 'danger')
+        return redirect(url_for('divisions'))
+    return render_template('division_form.html', division=division)
+
+@app.route('/divisions/delete/<int:did>', methods=['POST'])
+@perm('divisions','delete')
+def division_delete(did):
+    db = get_db()
+    party_count = db.execute("SELECT COUNT(*) FROM dgvcl_parties WHERE division_id=?", (did,)).fetchone()[0]
+    est_count   = db.execute("SELECT COUNT(*) FROM dgvcl_estimates WHERE division_id=?", (did,)).fetchone()[0]
+    if party_count or est_count:
+        flash(f'Cannot delete — division has {party_count} part(y/ies) and {est_count} estimate(s) linked to it.', 'danger')
+    else:
+        db.execute("DELETE FROM dgvcl_divisions WHERE id=?", (did,))
+        db.commit()
+        sync_delete('dgvcl_divisions', did)
+        flash('Division deleted.', 'success')
     db.close()
     return redirect(url_for('divisions'))
 

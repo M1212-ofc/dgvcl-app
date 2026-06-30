@@ -8,9 +8,11 @@
     <h4>Estimates</h4>
     <p>DGVCL unit estimates — enter KW to auto-calculate charges</p>
   </div>
+  {% if g_permissions.get('estimates',{}).get('edit') %}
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
     <i class="bi bi-plus-lg me-1"></i>New Estimate
   </button>
+  {% endif %}
 </div>
 
 <!-- Filters -->
@@ -204,6 +206,8 @@
 {% block scripts %}
 <script>
 const inr = v => '₹' + Number(v).toLocaleString('en-IN', {maximumFractionDigits:2});
+const canEditEst   = {{ 'true' if g_permissions.get('estimates',{}).get('edit') else 'false' }};
+const canDeleteEst = {{ 'true' if g_permissions.get('estimates',{}).get('delete') else 'false' }};
 
 // Live KW calculation
 function recalc() {
@@ -288,10 +292,10 @@ async function loadEstimates() {
       <td style="font-weight:600;">${inr(r.total)}</td>
       <td>
         <div class="d-flex gap-1">
-          <a href="/estimates/edit/${r.id}" class="btn btn-outline-secondary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>
-          <form method="POST" action="/estimates/delete/${r.id}" onsubmit="return confirm('Delete this estimate?')">
+          ${canEditEst   ? `<a href="/estimates/edit/${r.id}" class="btn btn-outline-secondary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>` : ''}
+          ${canDeleteEst ? `<form method="POST" action="/estimates/delete/${r.id}" onsubmit="return confirm('Delete this estimate?')">
             <button class="btn btn-outline-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
-          </form>
+          </form>` : ''}
         </div>
       </td>
     </tr>`).join('');
