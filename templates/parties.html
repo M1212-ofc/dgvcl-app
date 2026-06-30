@@ -85,6 +85,11 @@
             <input name="address" class="form-control" placeholder="Full address"></div>
           <div class="col-12"><label class="form-label">GST Number</label>
             <input name="gst" class="form-control" placeholder="24XXXXX…"></div>
+          <div class="col-12"><label class="form-label">Division</label>
+            <select name="division_id" class="form-select">
+              <option value="">— None —</option>
+              {% for d in divisions %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+            </select></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
